@@ -20,13 +20,25 @@ export default function ExpensesPage() {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState(''); // Acts as 'totalPaid'
     const [myShare, setMyShare] = useState('');
-    const [owedBy, setOwedBy] = useState('');
+    const [splits, setSplits] = useState<{ person_name: string; amount: string }[]>([]);
     const [submitting, setSubmitting] = useState(false);
 
     // Auto-sync myShare with amount
     useEffect(() => {
         setMyShare(amount);
     }, [amount]);
+
+    // Handle split changes
+    const addSplit = () => setSplits([...splits, { person_name: '', amount: '' }]);
+    const removeSplit = (index: number) => setSplits(splits.filter((_, i) => i !== index));
+    const updateSplit = (index: number, field: 'person_name' | 'amount', value: string) => {
+        const newSplits = [...splits];
+        newSplits[index][field] = value;
+        setSplits(newSplits);
+    };
+
+    const remainingToSplit = Number(amount || 0) - Number(myShare || 0);
+    const splitSum = splits.reduce((sum, split) => sum + Number(split.amount || 0), 0);
 
     // Edit state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,6 +81,26 @@ export default function ExpensesPage() {
     const handleAddExpense = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!amount || Number(amount) <= 0) return;
+
+        if (remainingToSplit > 0) {
+            if (splits.length === 0) {
+                showToast('Please add who owes you the remaining amount.', 'error');
+                return;
+            }
+            if (splitSum !== remainingToSplit) {
+                showToast(`Split amounts (${splitSum}) must equal the remaining balance (${remainingToSplit}).`, 'error');
+                return;
+            }
+
+            // Validate all splits have names and amounts
+            for (const split of splits) {
+                if (!split.person_name.trim() || !split.amount || Number(split.amount) <= 0) {
+                    showToast('Please fill out all split names and amounts properly.', 'error');
+                    return;
+                }
+            }
+        }
+
         setSubmitting(true);
 
         try {
@@ -90,7 +122,7 @@ export default function ExpensesPage() {
                     description: description || null,
                     amount: Number(myShare),
                     total_paid: Number(amount),
-                    owed_by: owedBy || undefined,
+                    splits: remainingToSplit > 0 ? splits.map(s => ({ ...s, amount: Number(s.amount) })) : undefined,
                     entry_date: selectedDate
                 }),
             });
@@ -99,7 +131,7 @@ export default function ExpensesPage() {
                 showToast(`Added ${formatCurrencyPlain(Number(myShare))} for ${category}`);
                 setAmount('');
                 setMyShare('');
-                setOwedBy('');
+                setSplits([]);
                 setDescription('');
                 fetchEntries();
             } else {
@@ -245,20 +277,74 @@ export default function ExpensesPage() {
                                 required
                             />
                         </div>
-                        {Number(amount) > Number(myShare) && (
-                            <div className="form-group fade-in">
-                                <label className="form-label">Who owes you?</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Person's Name"
-                                    value={owedBy}
-                                    onChange={(e) => setOwedBy(e.target.value)}
-                                    required
-                                />
-                            </div>
-                        )}
                     </div>
+
+                    {/* Splits Section */}
+                    {remainingToSplit > 0 && (
+                        <div className="fade-in" style={{
+                            background: 'var(--bg-secondary)',
+                            padding: 'var(--space-md)',
+                            borderRadius: 'var(--radius-md)',
+                            marginBottom: 'var(--space-md)',
+                            border: '1px solid var(--border)'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
+                                <label className="form-label" style={{ margin: 0 }}>Split Remaining: {formatCurrencyPlain(remainingToSplit)}</label>
+                                <span style={{
+                                    fontSize: '14px',
+                                    color: splitSum === remainingToSplit ? 'var(--success)' : 'var(--danger)',
+                                    fontWeight: 500
+                                }}>
+                                    Allocated: {formatCurrencyPlain(splitSum)}
+                                </span>
+                            </div>
+
+                            {splits.map((split, index) => (
+                                <div key={index} className="form-row" style={{ alignItems: 'flex-start', marginBottom: 'var(--space-sm)' }}>
+                                    <div className="form-group" style={{ marginBottom: 0, flex: 2 }}>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Person's Name"
+                                            value={split.person_name}
+                                            onChange={(e) => updateSplit(index, 'person_name', e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="Amount"
+                                            value={split.amount}
+                                            onChange={(e) => updateSplit(index, 'amount', e.target.value)}
+                                            min="1"
+                                            step="1"
+                                            required
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-danger btn-sm"
+                                        onClick={() => removeSplit(index)}
+                                        style={{ marginTop: '4px' }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+
+                            <button
+                                type="button"
+                                className="btn btn-sm"
+                                onClick={addSplit}
+                                style={{ marginTop: 'var(--space-sm)' }}
+                            >
+                                + Add Person
+                            </button>
+                        </div>
+                    )}
+
                     <div className="form-group">
                         <label className="form-label">Description (optional)</label>
                         <input

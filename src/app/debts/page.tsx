@@ -53,8 +53,6 @@ export default function DebtsPage() {
         fetchDebts();
     }, [fetchDebts]);
 
-    const filteredDebts = debts.filter((d) => d.status === activeTab);
-
     const openDebts = debts.filter((d) => d.status === 'open');
     const totalCredit = openDebts
         .filter((d) => d.type === 'credit')
@@ -241,6 +239,24 @@ export default function DebtsPage() {
         setEditingId(null);
     };
 
+    // Calculate net balances per person based on open debts
+    const openDebtsRaw = debts.filter((d) => d.status === 'open');
+    const personBalances: Record<string, { net: number, debts: Debt[] }> = {};
+
+    openDebtsRaw.forEach(debt => {
+        const name = debt.person_name.toLowerCase().trim();
+
+        if (!personBalances[name]) {
+            personBalances[name] = { net: 0, debts: [] };
+        }
+
+        personBalances[name].debts.push(debt);
+        personBalances[name].net += debt.type === 'credit' ? Number(debt.amount) : -Number(debt.amount);
+    });
+
+    // We still need the original flats array for "Settled" tab
+    const filteredDebts = debts.filter((d) => d.status === activeTab);
+
     return (
         <div className="fade-in">
             <div className="page-header">
@@ -420,122 +436,171 @@ export default function DebtsPage() {
             {/* Debts list */}
             {loading ? (
                 <div className="loading"><div className="spinner" /></div>
-            ) : filteredDebts.length > 0 ? (
+            ) : activeTab === 'open' && Object.keys(personBalances).length > 0 ? (
+                <div className="list">
+                    {Object.entries(personBalances).map(([name, data]) => (
+                        <div key={name} className="list-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 'var(--space-sm)' }}>
+                                <div className="list-item-content">
+                                    <div
+                                        className="list-item-icon"
+                                        style={{
+                                            background: data.net === 0 ? 'var(--neutral-bg)' : data.net > 0 ? 'var(--success-bg)' : 'var(--danger-bg)',
+                                        }}
+                                    >
+                                        {data.net === 0 ? '⚖️' : data.net > 0 ? '↙️' : '↗️'}
+                                    </div>
+                                    <div className="list-item-text">
+                                        <span className="list-item-title" style={{ textTransform: 'capitalize' }}>{name}</span>
+                                        <span className="list-item-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                            {data.debts.length} active {data.debts.length === 1 ? 'record' : 'records'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+                                    <span
+                                        className="list-item-amount"
+                                        style={{ color: data.net === 0 ? 'var(--text-secondary)' : data.net > 0 ? 'var(--success)' : 'var(--danger)' }}
+                                    >
+                                        {data.net === 0 ? 'Settled (Net 0)' : `${data.net > 0 ? '+' : ''}${formatCurrencyPlain(data.net)}`}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Show individual records for this person indented */}
+                            <div style={{ paddingLeft: 'calc(40px + var(--space-md))', display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                                {data.debts.map(debt => (
+                                    <div key={debt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-xs) 0', borderTop: '1px solid var(--border)' }}>
+                                        {editingId === debt.id ? (
+                                            <div className="edit-form" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', width: '100%' }}>
+                                                <div className="form-row">
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        value={editPersonName}
+                                                        onChange={(e) => setEditPersonName(e.target.value)}
+                                                        placeholder="Person's Name"
+                                                        required
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        value={editAmount}
+                                                        onChange={(e) => setEditAmount(e.target.value)}
+                                                        placeholder="Amount"
+                                                        min="1"
+                                                        step="1"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="form-row">
+                                                    <select
+                                                        className="form-select"
+                                                        value={editType}
+                                                        onChange={(e) => setEditType(e.target.value as 'credit' | 'debit')}
+                                                    >
+                                                        <option value="credit">Credit</option>
+                                                        <option value="debit">Debit</option>
+                                                    </select>
+                                                    <input
+                                                        type="date"
+                                                        className="form-input"
+                                                        value={editEntryDate}
+                                                        onChange={(e) => setEditEntryDate(e.target.value)}
+                                                        required
+                                                    />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    className="form-input"
+                                                    value={editNote}
+                                                    onChange={(e) => setEditNote(e.target.value)}
+                                                    placeholder="Note (optional)"
+                                                />
+                                                <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
+                                                    <button className="btn btn-sm" onClick={handleCancelEdit}>Cancel</button>
+                                                    <button className="btn btn-primary btn-sm" onClick={handleSaveEdit} disabled={savingEdit}>
+                                                        {savingEdit ? 'Saving...' : 'Save'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div style={{ fontSize: '14px' }}>
+                                                    <span className={`badge ${debt.type}`} style={{ marginRight: 'var(--space-xs)', padding: '2px 6px', fontSize: '11px' }}>{debt.type}</span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>{debt.note || (debt.type === 'credit' ? 'Owed' : 'Borrowed')} · {new Date(debt.entry_date).toLocaleDateString()}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                                                    <span style={{ fontWeight: 500, color: debt.type === 'credit' ? 'var(--success)' : 'var(--danger)' }}>
+                                                        {debt.type === 'credit' ? '+' : '-'}{formatCurrencyPlain(Number(debt.amount))}
+                                                    </span>
+                                                    <div className="list-item-actions">
+                                                        <button
+                                                            className="btn btn-sm"
+                                                            onClick={() => handleEditClick(debt)}
+                                                            style={{ marginRight: 'var(--space-xs)', padding: '4px' }}
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                        <button className="btn btn-success btn-sm" onClick={() => openSettleModal(debt)} style={{ marginRight: 'var(--space-xs)', padding: '4px' }}>
+                                                            ✓
+                                                        </button>
+                                                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(debt.id)} style={{ padding: '4px' }}>
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : activeTab === 'settled' && filteredDebts.length > 0 ? (
                 <div className="list">
                     {filteredDebts.map((debt) => (
                         <div key={debt.id} className="list-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                            {editingId === debt.id ? (
-                                <div className="edit-form" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                                    <div className="form-row">
-                                        <input
-                                            type="text"
-                                            className="form-input"
-                                            value={editPersonName}
-                                            onChange={(e) => setEditPersonName(e.target.value)}
-                                            placeholder="Person's Name"
-                                            required
-                                        />
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            value={editAmount}
-                                            onChange={(e) => setEditAmount(e.target.value)}
-                                            placeholder="Amount"
-                                            min="1"
-                                            step="1"
-                                            required
-                                        />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                <div className="list-item-content">
+                                    <div
+                                        className="list-item-icon"
+                                        style={{
+                                            background: 'var(--neutral-bg)',
+                                        }}
+                                    >
+                                        ⚖️
                                     </div>
-                                    <div className="form-row">
-                                        <select
-                                            className="form-select"
-                                            value={editType}
-                                            onChange={(e) => setEditType(e.target.value as 'credit' | 'debit')}
-                                        >
-                                            <option value="credit">Credit</option>
-                                            <option value="debit">Debit</option>
-                                        </select>
-                                        <input
-                                            type="date"
-                                            className="form-input"
-                                            value={editEntryDate}
-                                            onChange={(e) => setEditEntryDate(e.target.value)}
-                                            required
-                                        />
+                                    <div className="list-item-text">
+                                        <span className="list-item-title" style={{ textTransform: 'capitalize' }}>{debt.person_name}</span>
+                                        <span className="list-item-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                            {debt.note || 'Settled record'}
+                                            {' · '}
+                                            <span style={{ opacity: 0.7, fontSize: '0.9em' }}>
+                                                {new Date(debt.entry_date).toLocaleDateString()}
+                                            </span>
+                                            {' · '}
+                                            <span className={`badge ${debt.type}`}>{debt.type}</span>
+                                            {' '}
+                                            <span className={`badge settled`}>settled</span>
+                                        </span>
                                     </div>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={editNote}
-                                        onChange={(e) => setEditNote(e.target.value)}
-                                        placeholder="Note (optional)"
-                                    />
-                                    <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
-                                        <button className="btn btn-sm" onClick={handleCancelEdit}>Cancel</button>
-                                        <button className="btn btn-primary btn-sm" onClick={handleSaveEdit} disabled={savingEdit}>
-                                            {savingEdit ? 'Saving...' : 'Save'}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+                                    <span
+                                        className="list-item-amount"
+                                        style={{ color: 'var(--text-secondary)' }}
+                                    >
+                                        {formatCurrencyPlain(Number(debt.amount))}
+                                    </span>
+                                    <div className="list-item-actions">
+                                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(debt.id)}>
+                                            ✕
                                         </button>
                                     </div>
                                 </div>
-                            ) : (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                    <div className="list-item-content">
-                                        <div
-                                            className="list-item-icon"
-                                            style={{
-                                                background: debt.type === 'credit' ? 'var(--success-bg)' : 'var(--danger-bg)',
-                                            }}
-                                        >
-                                            {debt.type === 'credit' ? '↙️' : '↗️'}
-                                        </div>
-                                        <div className="list-item-text">
-                                            <span className="list-item-title">{debt.person_name}</span>
-                                            <span className="list-item-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                                {debt.note || (debt.type === 'credit' ? 'Owes you' : 'You owe')}
-                                                {' · '}
-                                                <span style={{ opacity: 0.7, fontSize: '0.9em' }}>
-                                                    {new Date(debt.entry_date).toLocaleDateString()}
-                                                </span>
-                                                {' · '}
-                                                <span className={`badge ${debt.type}`}>{debt.type}</span>
-                                                {' '}
-                                                <span className={`badge ${debt.status}`}>{debt.status}</span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-                                        <span
-                                            className="list-item-amount"
-                                            style={{ color: debt.type === 'credit' ? 'var(--success)' : 'var(--danger)' }}
-                                        >
-                                            {debt.type === 'credit' ? '+' : '-'}{formatCurrencyPlain(Number(debt.amount))}
-                                        </span>
-                                        {debt.status === 'open' ? (
-                                            <div className="list-item-actions">
-                                                <button
-                                                    className="btn btn-sm"
-                                                    onClick={() => handleEditClick(debt)}
-                                                    style={{ marginRight: 'var(--space-xs)' }}
-                                                >
-                                                    ✏️
-                                                </button>
-                                                <button className="btn btn-success btn-sm" onClick={() => openSettleModal(debt)} style={{ marginRight: 'var(--space-xs)' }}>
-                                                    ✓
-                                                </button>
-                                                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(debt.id)}>
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="list-item-actions">
-                                                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(debt.id)}>
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </div>
                     ))}
                 </div>

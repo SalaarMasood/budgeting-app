@@ -118,15 +118,15 @@ CREATE POLICY "Users can delete their own debts" ON public.debts
 -- STORED PROCEDURES (RPC)
 -- ==========================================
 
--- Atomic insertion of an expense and an optional credit if total_paid > my_share.
-CREATE OR REPLACE FUNCTION public.create_expense_with_credit(
+-- Atomic insertion of an expense and credit splits if total_paid > my_share.
+CREATE OR REPLACE FUNCTION public.log_expense_with_splits(
     p_user_id UUID,
     p_daily_entry_id UUID,
     p_category TEXT,
     p_description TEXT,
     p_my_share NUMERIC,
     p_total_paid NUMERIC,
-    p_owed_by TEXT,
+    p_splits JSON,
     p_entry_date DATE
 ) RETURNS public.expense_items
 LANGUAGE plpgsql
@@ -134,29 +134,32 @@ SECURITY DEFINER
 AS $$
 DECLARE
     new_expense public.expense_items;
-    difference NUMERIC;
+    split_record RECORD;
+    normalized_name TEXT;
 BEGIN
     -- 1. Insert the exact personal share as the expense item
     INSERT INTO public.expense_items (daily_entry_id, category, description, amount)
     VALUES (p_daily_entry_id, p_category, p_description, p_my_share)
     RETURNING * INTO new_expense;
 
-    -- 2. If the user paid more than their share, create a credit for the difference
+    -- 2. Insert a credit for each person in the splits array
     IF p_total_paid > p_my_share THEN
-        difference := p_total_paid - p_my_share;
-        
-        -- Insert a credit debt tied to the specific person and linked to the expense
-        INSERT INTO public.debts (user_id, person_name, amount, type, note, entry_date, status, source_expense_id)
-        VALUES (
-            p_user_id, 
-            p_owed_by, 
-            difference, 
-            'credit', 
-            'Owed for ' || p_category || ' expense', 
-            COALESCE(p_entry_date, CURRENT_DATE), 
-            'open', 
-            new_expense.id
-        );
+        FOR split_record IN SELECT * FROM json_to_recordset(p_splits) AS x(person_name TEXT, amount NUMERIC)
+        LOOP
+            normalized_name := lower(trim(split_record.person_name));
+            
+            INSERT INTO public.debts (user_id, person_name, amount, type, note, entry_date, status, source_expense_id)
+            VALUES (
+                p_user_id, 
+                normalized_name, 
+                split_record.amount, 
+                'credit', 
+                'Owed for ' || p_category || ' expense', 
+                COALESCE(p_entry_date, CURRENT_DATE), 
+                'open', 
+                new_expense.id
+            );
+        END LOOP;
     END IF;
 
     -- Return the newly created expense

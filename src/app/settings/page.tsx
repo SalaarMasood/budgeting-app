@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatCurrencyPlain } from '@/lib/calculations';
 import { useToast } from '@/components/Toast';
 import type { MonthlyBudget } from '@/lib/types';
@@ -17,33 +17,35 @@ export default function SettingsPage() {
     const [currentBudget, setCurrentBudget] = useState<MonthlyBudget | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const showToastRef = useRef(showToast);
+    showToastRef.current = showToast;
 
-    const fetchBudget = useCallback(async () => {
+    const fetchBudget = async (y: number, m: number) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/budgets?year=${year}`);
+            const res = await fetch(`/api/budgets?year=${y}`);
             const data = await res.json();
             if (Array.isArray(data)) {
-                const found = data.find((b: MonthlyBudget) => b.month === month);
+                const found = data.find((b: MonthlyBudget) => b.month === m);
                 setCurrentBudget(found || null);
                 if (found) {
                     setBudgetAmount(String(found.budget_amount));
-                    setStartDate(found.start_date || `${year}-${String(month).padStart(2, '0')}-01`);
+                    setStartDate(found.start_date || `${y}-${String(m).padStart(2, '0')}-01`);
                 } else {
                     setBudgetAmount('');
-                    setStartDate(`${year}-${String(month).padStart(2, '0')}-01`);
+                    setStartDate(`${y}-${String(m).padStart(2, '0')}-01`);
                 }
             }
         } catch {
-            showToast('Failed to load budget', 'error');
+            showToastRef.current('Failed to load budget', 'error');
         } finally {
             setLoading(false);
         }
-    }, [year, month, showToast]);
+    };
 
     useEffect(() => {
-        fetchBudget();
-    }, [fetchBudget]);
+        fetchBudget(year, month);
+    }, [year, month]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,7 +66,7 @@ export default function SettingsPage() {
 
             if (res.ok) {
                 showToast(`Budget set to ${formatCurrencyPlain(Number(budgetAmount))} for ${MONTHS[month - 1]} ${year}`);
-                fetchBudget();
+                fetchBudget(year, month);
             } else {
                 const err = await res.json();
                 showToast(err.error || 'Failed to save', 'error');

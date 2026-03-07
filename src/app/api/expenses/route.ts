@@ -3,10 +3,10 @@ import { supabase, USER_ID } from '@/lib/supabase';
 import { getTodayPSTStr } from '@/lib/dateUtils';
 
 // POST /api/expenses
-// Body: { daily_entry_id, category, description?, amount }
+// Body: { daily_entry_id, category, description?, amount, total_paid?, splits?, entry_date? }
 export async function POST(request: NextRequest) {
     const body = await request.json();
-    const { daily_entry_id, category, description, amount, total_paid, owed_by, entry_date } = body;
+    const { daily_entry_id, category, description, amount, total_paid, splits = [], entry_date } = body;
 
     const myShare = Number(amount);
     const totalPaid = total_paid !== undefined ? Number(total_paid) : myShare;
@@ -25,22 +25,32 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    if (totalPaid > myShare && !owed_by) {
-        return NextResponse.json(
-            { error: 'Please specify who owes you for the remaining amount.' },
-            { status: 400 },
-        );
+    if (totalPaid > myShare) {
+        if (!splits || splits.length === 0) {
+            return NextResponse.json(
+                { error: 'Please specify who owes you for the remaining amount.' },
+                { status: 400 },
+            );
+        }
+
+        const splitsSum = splits.reduce((sum: number, split: { amount: number }) => sum + Number(split.amount), 0);
+        if (splitsSum !== (totalPaid - myShare)) {
+            return NextResponse.json(
+                { error: 'The split amounts must exactly add up to the remaining balance (Total Paid - My Share).' },
+                { status: 400 }
+            );
+        }
     }
 
-    // Use the RPC to atomically insert the expense and a credit if needed
-    const { data, error } = await supabase.rpc('create_expense_with_credit', {
+    // Use the RPC to atomically insert the expense and credits
+    const { data, error } = await supabase.rpc('log_expense_with_splits', {
         p_user_id: USER_ID,
         p_daily_entry_id: daily_entry_id,
         p_category: category,
         p_description: description || null,
         p_my_share: myShare,
         p_total_paid: totalPaid,
-        p_owed_by: owed_by || null,
+        p_splits: splits,
         p_entry_date: entry_date || getTodayPSTStr()
     });
 
