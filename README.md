@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal Budgeting App
 
-## Getting Started
+A sleek, modern, and powerful personal budgeting web application built with **Next.js**, **Supabase**, and **Vanilla CSS**. This app helps you track your daily expenses, manage monthly budgets, and keep a clear record of debts and credits (splits).
 
-First, run the development server:
+## ✨ Features
+
+- **📊 Dynamic Dashboard**: Get a quick overview of your today's spending, daily budget targets, and overall monthly P/L.
+- **💸 Expense Management**: Log daily expenses with categories and descriptions.
+- **🔄 Expense Splitting**: Automatically calculate shares when paying for others. Integrated credit/debit tracking.
+- **🤝 Debt Tracker**: Keep track of who owes you (credits) and who you owe (debits) with a dedicated status-based view.
+- **📅 Monthly Budgeting**: Set monthly targets and see your "Adjusted Remaining Budget" based on open debts.
+- **🎨 Premium UI**: A clean, responsive design with dark mode support, smooth transitions, and intuitive navigation.
+
+## 🚀 Tech Stack
+
+- **Framework**: [Next.js 15+](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
+- **Styling**: Vanilla CSS (CSS Variables, Flex/Grid)
+- **Icons**: Semantic Emojis & Custom CSS
+- **Utilities**: `date-fns` for date manipulation, `papaparse` & `xlsx` for potential data exports.
+
+## 🛠️ Getting Started
+
+### 1. Prerequisites
+- Node.js 18+
+- A Supabase account and project.
+
+### 2. Environment Setup
+Create a `.env.local` file in the root directory:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Database Initialization
+Run the SQL script found in `supabase/schema.sql` in your Supabase SQL Editor. This will set up the necessary tables, indexes, and stored procedures (like `log_expense_with_splits`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Local Development
+```bash
+# Install dependencies
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Run the development server
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the app.
 
-To learn more about Next.js, take a look at the following resources:
+## 📂 Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/app/`: Next.js pages and API routes.
+- `src/components/`: Reusable UI components (Shared layout, Toasts, Modals).
+- `src/lib/`: Utility functions, types, and database clients.
+- `supabase/`: SQL schema and database migrations.
+- `public/`: Static assets.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📄 License
+This project is private and for personal use.
