@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, USER_ID } from '@/lib/supabase';
+import { supabase, getUserId } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { data: budget } = await supabase
         .from('monthly_budgets')
         .select('*')
-        .eq('user_id', USER_ID)
+        .eq('user_id', await getUserId())
         .eq('year', parseInt(year))
         .eq('month', parseInt(month))
         .single();

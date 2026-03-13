@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, USER_ID } from '@/lib/supabase';
+import { supabase, getUserId } from '@/lib/supabase';
 import { getTodayPSTStr } from '@/lib/dateUtils';
 
 // GET /api/debts?status=open
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
         .from('debts')
         .select('*')
-        .eq('user_id', USER_ID)
+        .eq('user_id', await getUserId())
         .order('created_at', { ascending: false });
 
     if (status) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const payload: Record<string, unknown> = {
-        user_id: USER_ID,
+        user_id: await getUserId(),
         person_name,
         amount,
         type,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, USER_ID } from '@/lib/supabase';
+import { supabase, getUserId } from '@/lib/supabase';
 
 // GET /api/entries?year=2026&month=3
 export async function GET(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { data: budget, error: budgetError } = await supabase
         .from('monthly_budgets')
         .select('id')
-        .eq('user_id', USER_ID)
+        .eq('user_id', await getUserId())
         .eq('year', parseInt(year))
         .eq('month', parseInt(month))
         .single();
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     let { data: budget } = await supabase
         .from('monthly_budgets')
         .select('id')
-        .eq('user_id', USER_ID)
+        .eq('user_id', await getUserId())
         .eq('year', year)
         .eq('month', month)
         .single();
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         const { data: newBudget, error: createError } = await supabase
             .from('monthly_budgets')
             .insert({
-                user_id: USER_ID,
+                user_id: await getUserId(),
                 year,
                 month,
                 budget_amount: 0,

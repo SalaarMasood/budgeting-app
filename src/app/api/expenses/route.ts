@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, USER_ID } from '@/lib/supabase';
+import { supabase, getUserId } from '@/lib/supabase';
 import { getTodayPSTStr } from '@/lib/dateUtils';
 
 // POST /api/expenses
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Use the RPC to atomically insert the expense and credits
     const { data, error } = await supabase.rpc('log_expense_with_splits', {
-        p_user_id: USER_ID,
+        p_user_id: await getUserId(),
         p_daily_entry_id: daily_entry_id,
         p_category: category,
         p_description: description || null,

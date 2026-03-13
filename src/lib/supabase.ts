@@ -5,4 +5,15 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const USER_ID = process.env.NEXT_PUBLIC_USER_ID || '00000000-0000-0000-0000-000000000001';
+import { cookies } from 'next/headers';
+
+export const getUserId = async () => {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (token === 'demo') {
+        return process.env.NEXT_PUBLIC_DEMO_USER_ID || '00000000-0000-0000-0000-000000000002';
+    }
+
+    return process.env.NEXT_PUBLIC_USER_ID || '00000000-0000-0000-0000-000000000001';
+};

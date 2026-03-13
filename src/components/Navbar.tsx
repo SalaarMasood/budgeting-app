@@ -13,6 +13,14 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
     const pathname = usePathname();
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
 
     return (
         <nav className="nav-sidebar">
@@ -33,6 +41,22 @@ export default function Navbar() {
                     </li>
                 ))}
             </ul>
+            <div style={{ marginTop: 'auto', paddingTop: 'var(--space-md)', borderTop: '1px solid var(--border)' }}>
+                <button
+                    onClick={handleLogout}
+                    className="nav-link"
+                    style={{
+                        width: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        textAlign: 'left',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <span className="nav-link-icon">🚪</span>
+                    <span className="nav-link-text">Logout</span>
+                </button>
+            </div>
         </nav>
     );
 }

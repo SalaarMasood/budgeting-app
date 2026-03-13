@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, USER_ID } from '@/lib/supabase';
+import { supabase, getUserId } from '@/lib/supabase';
 
 // GET /api/budgets?year=2026
 export async function GET(request: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
         .from('monthly_budgets')
         .select('*')
-        .eq('user_id', USER_ID)
+        .eq('user_id', await getUserId())
         .order('year', { ascending: false })
         .order('month', { ascending: false });
 
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const payload: Record<string, unknown> = {
-        user_id: USER_ID,
+        user_id: await getUserId(),
         year,
         month,
         budget_amount,
