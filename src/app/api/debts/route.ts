@@ -72,13 +72,13 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH /api/debts
-// Body: { id, status?, amount?, note? }
+// Body: { id | ids[], status?, amount?, note? }
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
-    const { id, ...updates } = body;
+    const { id, ids, ...updates } = body;
 
-    if (!id) {
-        return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    if (!id && (!ids || !Array.isArray(ids))) {
+        return NextResponse.json({ error: 'id or ids[] is required' }, { status: 400 });
     }
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -96,12 +96,15 @@ export async function PATCH(request: NextRequest) {
     if (updates.type) updateData.type = updates.type;
     if (updates.entry_date) updateData.entry_date = updates.entry_date;
 
-    const { data, error } = await supabase
-        .from('debts')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+    const query = supabase.from('debts').update(updateData);
+    
+    if (ids) {
+        query.in('id', ids);
+    } else {
+        query.eq('id', id);
+    }
+
+    const { data, error } = await query.select();
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -110,19 +113,26 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(data);
 }
 
-// DELETE /api/debts?id=...
+// DELETE /api/debts?id=... or /api/debts?ids=id1,id2,id3
 export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const idsString = searchParams.get('ids');
 
-    if (!id) {
-        return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    if (!id && !idsString) {
+        return NextResponse.json({ error: 'id or ids is required' }, { status: 400 });
     }
 
-    const { error } = await supabase
-        .from('debts')
-        .delete()
-        .eq('id', id);
+    const query = supabase.from('debts').delete();
+    
+    if (idsString) {
+        const ids = idsString.split(',').map(s => s.trim());
+        query.in('id', ids);
+    } else {
+        query.eq('id', id);
+    }
+
+    const { error } = await query;
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

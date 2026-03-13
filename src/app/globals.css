@@ -1019,3 +1019,156 @@ a:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Dashboard Refinements */
+.font-md {
+  font-size: 18px !important;
+}
+
+.unit {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.stat-card.recovery {
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255, 217, 61, 0.05) 100%);
+  border-left: 4px solid var(--warning);
+}
+
+.stat-card.compact-group {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.stat-group-item {
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-group-divider {
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+
+.bg-highlight {
+  margin-top: auto;
+}
+
+.bg-highlight.success {
+  background: var(--success-bg);
+}
+
+.bg-highlight.danger {
+  background: var(--danger-bg);
+}
+
+.stat-card.full-width {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.stat-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.stat-label-large {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.pace-indicator {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pace-indicator.good {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.pace-indicator.bad {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.metric-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.metric-value.highlight {
+  color: var(--accent-primary);
+}
+
+.progress-bar-container {
+  margin-top: var(--space-sm);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  position: relative;
+  overflow: visible;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-gradient);
+  border-radius: var(--radius-full);
+  transition: width 0.5s ease;
+}
+
+.time-marker {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 16px;
+  background: var(--text-primary);
+  z-index: 2;
+}
+
+.marker-label {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-primary);
+}

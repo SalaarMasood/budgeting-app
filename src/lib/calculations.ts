@@ -74,6 +74,17 @@ export function buildBudgetSummary(
     const profitLoss = getProfitLoss(expected, totalSpent);
     const adjustedRemaining = getAdjustedRemaining(remaining, totalCredit, totalDebit);
 
+    // Calculate Recovery Target: How much can I spend per day for the rest of the month to hit 0?
+    const remainingDays = days - elapsedDays;
+    const recoveryTarget = remainingDays > 0 ? remaining / remainingDays : 0;
+
+    // Calculate Burn Rate: % of budget spent vs % of month passed
+    // 1.0 means spending exactly at the pace of time
+    // > 1.0 means overspending
+    const monthProgress = elapsedDays / days;
+    const budgetProgress = totalSpent / monthlyBudget;
+    const burnRate = monthProgress > 0 ? budgetProgress / monthProgress : 0;
+
     return {
         monthlyBudget,
         daysInMonth: days,
@@ -86,6 +97,8 @@ export function buildBudgetSummary(
         totalCredit,
         totalDebit,
         adjustedRemaining,
+        recoveryTarget,
+        burnRate,
     };
 }
 

@@ -47,12 +47,6 @@ export default function DashboardPage() {
   const remainingToSplit = Number(expenseAmount || 0) - Number(myShare || 0);
   const splitSum = splits.reduce((sum, split) => sum + Number(split.amount || 0), 0);
 
-  // Edit state for dashboard
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editCategory, setEditCategory] = useState('Food');
-  const [editDescription, setEditDescription] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -211,58 +205,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteExpense = async (id: string) => {
-    try {
-      const res = await fetch(`/api/expenses?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('Expense removed');
-        fetchData();
-      }
-    } catch {
-      showToast('Failed to delete expense', 'error');
-    }
-  };
-
-  const handleEditClick = (item: ExpenseItem) => {
-    setEditingId(item.id);
-    setEditCategory(item.category);
-    setEditDescription(item.description || '');
-    setEditAmount(item.amount.toString());
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editAmount || Number(editAmount) <= 0) return;
-    setSavingEdit(true);
-    try {
-      const res = await fetch('/api/expenses', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingId,
-          category: editCategory,
-          description: editDescription || null,
-          amount: Number(editAmount),
-        }),
-      });
-
-      if (res.ok) {
-        showToast('Expense updated');
-        setEditingId(null);
-        fetchData();
-      } else {
-        const err = await res.json();
-        showToast(err.error || 'Failed to update expense', 'error');
-      }
-    } catch {
-      showToast('Failed to update expense', 'error');
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-  };
 
 
   if (loading) {
@@ -416,24 +358,35 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Recovery & Today's Summary */}
       <div className="stats-grid">
-        <div className="stat-card accent">
-          <div className="stat-icon accent">💸</div>
-          <div className="stat-label">Spent Today</div>
-          <div className="stat-value neutral">{formatCurrencyPlain(daily.todaySpent)}</div>
-        </div>
-        <div className="stat-card info">
-          <div className="stat-icon info">🎯</div>
-          <div className="stat-label">Daily Budget</div>
-          <div className="stat-value neutral">{formatCurrencyPlain(Math.round(daily.dailyBudget))}</div>
-        </div>
-        <div className={`stat-card ${daily.dailyProfitLoss >= 0 ? 'success' : 'danger'}`}>
-          <div className={`stat-icon ${daily.dailyProfitLoss >= 0 ? 'success' : 'danger'}`}>
-            {daily.dailyProfitLoss >= 0 ? '📈' : '📉'}
+        <div className="stat-card recovery">
+          <div className="stat-icon warning">🚀</div>
+          <div className="stat-label">Recovery Action</div>
+          <div className="stat-value neutral">
+            {formatCurrencyPlain(Math.max(0, Math.round(summary.recoveryTarget)))}
+            <span className="unit">/day</span>
           </div>
-          <div className="stat-label">Today&apos;s P/L</div>
-          <div className={`stat-value ${daily.dailyProfitLoss >= 0 ? 'positive' : 'negative'}`}>
-            {daily.dailyProfitLoss >= 0 ? '+' : ''}{formatCurrencyPlain(Math.round(daily.dailyProfitLoss))}
+          <p className="card-subtitle">
+            Target to hit 0 by end of month
+          </p>
+        </div>
+
+        <div className="stat-card compact-group">
+          <div className="stat-group-item">
+            <div className="stat-label">Spent Today</div>
+            <div className="stat-value neutral font-md">{formatCurrencyPlain(daily.todaySpent)}</div>
+          </div>
+          <div className="stat-group-divider"></div>
+          <div className="stat-group-item">
+            <div className="stat-label">Daily Budget</div>
+            <div className="stat-value neutral font-md">{formatCurrencyPlain(Math.round(daily.dailyBudget))}</div>
+          </div>
+          <div className={`stat-group-item bg-highlight ${daily.dailyProfitLoss >= 0 ? 'success' : 'danger'}`}>
+             <div className="stat-label">Today&apos;s P/L</div>
+             <div className={`stat-value font-md ${daily.dailyProfitLoss >= 0 ? 'positive' : 'negative'}`}>
+               {daily.dailyProfitLoss >= 0 ? '+' : ''}{formatCurrencyPlain(Math.round(daily.dailyProfitLoss))}
+             </div>
           </div>
         </div>
       </div>
@@ -444,143 +397,59 @@ export default function DashboardPage() {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card accent">
-          <div className="stat-icon accent">📋</div>
-          <div className="stat-label">Monthly Budget</div>
-          <div className="stat-value neutral">{formatCurrencyPlain(summary.monthlyBudget)}</div>
+        <div className="stat-card full-width">
+           <div className="stat-header">
+             <div className="stat-icon accent">📊</div>
+             <div className="stat-label-large">Monthly Pace</div>
+             <div className={`pace-indicator ${summary.burnRate <= 1 ? 'good' : 'bad'}`}>
+                {summary.burnRate <= 1 ? 'On Track' : 'Over Pace'}
+             </div>
+           </div>
+           
+           <div className="metrics-row">
+             <div className="metric">
+               <span className="metric-label">Budget</span>
+               <span className="metric-value">{formatCurrencyPlain(summary.monthlyBudget)}</span>
+             </div>
+             <div className="metric">
+               <span className="metric-label">Spent</span>
+               <span className="metric-value">{formatCurrencyPlain(summary.totalSpent)}</span>
+             </div>
+             <div className="metric">
+               <span className="metric-label">P/L</span>
+               <span className={`metric-value ${summary.profitLoss >= 0 ? 'positive' : 'negative'}`}>
+                 {summary.profitLoss >= 0 ? '+' : ''}{formatCurrencyPlain(Math.round(summary.profitLoss))}
+               </span>
+             </div>
+             <div className="metric">
+               <span className="metric-label">Remaining</span>
+               <span className="metric-value highlight">{formatCurrencyPlain(Math.round(summary.remaining))}</span>
+             </div>
+           </div>
+
+           <div className="progress-bar-container">
+             <div className="progress-bar">
+               <div className="progress-fill" style={{ width: `${Math.min(100, (summary.totalSpent / summary.monthlyBudget) * 100)}%` }}></div>
+               <div className="time-marker" style={{ left: `${Math.min(100, (summary.currentDay / summary.daysInMonth) * 100)}%` }}>
+                 <span className="marker-label">Today</span>
+               </div>
+             </div>
+           </div>
         </div>
-        <div className="stat-card warning">
-          <div className="stat-icon warning">🔥</div>
-          <div className="stat-label">Spent So Far</div>
-          <div className="stat-value neutral">{formatCurrencyPlain(summary.totalSpent)}</div>
-        </div>
-        <div className={`stat-card ${summary.profitLoss >= 0 ? 'success' : 'danger'}`}>
-          <div className={`stat-icon ${summary.profitLoss >= 0 ? 'success' : 'danger'}`}>
-            {summary.profitLoss >= 0 ? '✅' : '⚠️'}
-          </div>
-          <div className="stat-label">Overall P/L</div>
-          <div className={`stat-value ${summary.profitLoss >= 0 ? 'positive' : 'negative'}`}>
-            {summary.profitLoss >= 0 ? '+' : ''}{formatCurrencyPlain(Math.round(summary.profitLoss))}
-          </div>
-        </div>
-        <div className="stat-card info">
-          <div className="stat-icon info">💰</div>
-          <div className="stat-label">Remaining</div>
-          <div className="stat-value neutral">{formatCurrencyPlain(Math.round(summary.remaining))}</div>
-        </div>
+
         <div className="stat-card accent">
           <div className="stat-icon accent">🔄</div>
-          <div className="stat-label">Adjusted Remaining</div>
+          <div className="stat-label">Adjusted Liquid Remaining</div>
           <div className={`stat-value ${summary.adjustedRemaining >= 0 ? 'neutral' : 'negative'}`}>
             {formatCurrencyPlain(Math.round(summary.adjustedRemaining))}
           </div>
           <div className="card-subtitle">
-            Credit: {formatCurrencyPlain(totalCredit)} · Debit: {formatCurrencyPlain(totalDebit)}
+            After Credit ({formatCurrencyPlain(totalCredit)}) & Debit ({formatCurrencyPlain(totalDebit)})
           </div>
         </div>
       </div>
 
-      {/* Recent Expenses */}
-      <div className="section-header">
-        <h2 className="section-title">Today&apos;s Expenses</h2>
-      </div>
-      {todayEntry && (todayEntry.expense_items || []).length > 0 ? (
-        <div className="list">
-          {(todayEntry.expense_items || []).map((item: ExpenseItem) => (
-            <div key={item.id} className="list-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-              {editingId === item.id ? (
-                <div className="edit-form" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                  <div className="form-row">
-                    <select
-                      className="form-select"
-                      value={editCategory}
-                      onChange={(e) => setEditCategory(e.target.value)}
-                    >
-                      {EXPENSE_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                      min="0"
-                      step="1"
-                      required
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Description"
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                  />
-                  <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-sm" onClick={handleCancelEdit}>Cancel</button>
-                    <button className="btn btn-primary btn-sm" onClick={handleSaveEdit} disabled={savingEdit}>
-                      {savingEdit ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <div className="list-item-content">
-                    <div className="list-item-icon" style={{ background: 'var(--info-bg)' }}>
-                      {getCategoryIcon(item.category)}
-                    </div>
-                    <div className="list-item-text">
-                      <span className="list-item-title">{item.category}</span>
-                      <span className="list-item-subtitle">{item.description || 'No description'}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-                    <span className="list-item-amount" style={{ color: 'var(--danger)' }}>
-                      -{formatCurrencyPlain(Number(item.amount))}
-                    </span>
-                    <div className="list-item-actions">
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => handleEditClick(item)}
-                        style={{ marginRight: 'var(--space-xs)' }}
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDeleteExpense(item.id)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-state-icon">📝</div>
-          <p className="empty-state-text">No expenses logged today. Tap Quick Add to start!</p>
-        </div>
-      )}
     </div>
   );
 }
 
-function getCategoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    Food: '🍽️',
-    Snacks: '🍿',
-    Transport: '🚗',
-    Shopping: '🛒',
-    Utilities: '⚡',
-    Entertainment: '🎮',
-    Education: '📚',
-    Health: '💊',
-    Other: '📦',
-  };
-  return icons[category] || '📦';
-}

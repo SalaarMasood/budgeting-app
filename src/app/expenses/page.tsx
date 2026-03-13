@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays, subDays } from 'date-fns';
 import { formatCurrencyPlain } from '@/lib/calculations';
 import { useToast } from '@/components/Toast';
 import type { DailyEntry, ExpenseItem } from '@/lib/types';
 import { EXPENSE_CATEGORIES } from '@/lib/types';
 import { getNowPST, getTodayPSTStr } from '@/lib/dateUtils';
+import NameAutocomplete from '@/components/NameAutocomplete';
 
 export default function ExpensesPage() {
     const { showToast } = useToast();
@@ -28,12 +29,12 @@ export default function ExpensesPage() {
         setMyShare(amount);
     }, [amount]);
 
-    // Handle split changes
     const addSplit = () => setSplits([...splits, { person_name: '', amount: '' }]);
     const removeSplit = (index: number) => setSplits(splits.filter((_, i) => i !== index));
     const updateSplit = (index: number, field: 'person_name' | 'amount', value: string) => {
         const newSplits = [...splits];
-        newSplits[index][field] = value;
+        if (field === 'person_name') newSplits[index].person_name = value;
+        if (field === 'amount') newSplits[index].amount = value;
         setSplits(newSplits);
     };
 
@@ -91,8 +92,6 @@ export default function ExpensesPage() {
                 showToast(`Split amounts (${splitSum}) must equal the remaining balance (${remainingToSplit}).`, 'error');
                 return;
             }
-
-            // Validate all splits have names and amounts
             for (const split of splits) {
                 if (!split.person_name.trim() || !split.amount || Number(split.amount) <= 0) {
                     showToast('Please fill out all split names and amounts properly.', 'error');
@@ -104,7 +103,6 @@ export default function ExpensesPage() {
         setSubmitting(true);
 
         try {
-            // Ensure daily entry exists
             const entryRes = await fetch('/api/entries', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -112,7 +110,6 @@ export default function ExpensesPage() {
             });
             const entryData = await entryRes.json();
 
-            // Add expense
             const res = await fetch('/api/expenses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -198,6 +195,13 @@ export default function ExpensesPage() {
         setEditingId(null);
     };
 
+    const navigateDay = (days: number) => {
+        const newDate = addDays(parseISO(selectedDate), days);
+        const today = getNowPST();
+        if (newDate > today) return; 
+        setSelectedDate(format(newDate, 'yyyy-MM-dd'));
+    };
+
     return (
         <div className="fade-in">
             <div className="page-header">
@@ -205,21 +209,24 @@ export default function ExpensesPage() {
                 <p className="page-subtitle">Log and manage your daily spending</p>
             </div>
 
-            {/* Date picker */}
             <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label">Select Date</label>
-                    <input
-                        type="date"
-                        className="form-input"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        max={format(now, 'yyyy-MM-dd')}
-                    />
+                    <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+                        <button className="btn btn-sm" onClick={() => navigateDay(-1)} title="Previous Day">←</button>
+                        <input
+                            type="date"
+                            className="form-input"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            max={format(now, 'yyyy-MM-dd')}
+                            style={{ flex: 1 }}
+                        />
+                        <button className="btn btn-sm" onClick={() => navigateDay(1)} disabled={selectedDate === format(now, 'yyyy-MM-dd')} title="Next Day">→</button>
+                    </div>
                 </div>
             </div>
 
-            {/* Running total */}
             <div className="stats-grid" style={{ marginBottom: 'var(--space-lg)' }}>
                 <div className="stat-card accent">
                     <div className="stat-label">Total for {format(dateObj, 'EEEE, MMM d')}</div>
@@ -231,7 +238,6 @@ export default function ExpensesPage() {
                 </div>
             </div>
 
-            {/* Add expense form */}
             <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
                 <h3 className="section-title" style={{ marginBottom: 'var(--space-md)' }}>Add Expense</h3>
                 <form onSubmit={handleAddExpense}>
@@ -279,7 +285,6 @@ export default function ExpensesPage() {
                         </div>
                     </div>
 
-                    {/* Splits Section */}
                     {remainingToSplit > 0 && (
                         <div className="fade-in" style={{
                             background: 'var(--bg-secondary)',
@@ -302,12 +307,9 @@ export default function ExpensesPage() {
                             {splits.map((split, index) => (
                                 <div key={index} className="form-row" style={{ alignItems: 'flex-start', marginBottom: 'var(--space-sm)' }}>
                                     <div className="form-group" style={{ marginBottom: 0, flex: 2 }}>
-                                        <input
-                                            type="text"
-                                            className="form-input"
-                                            placeholder="Person's Name"
+                                        <NameAutocomplete
                                             value={split.person_name}
-                                            onChange={(e) => updateSplit(index, 'person_name', e.target.value)}
+                                            onChange={(val) => updateSplit(index, 'person_name', val)}
                                             required
                                         />
                                     </div>
@@ -361,7 +363,6 @@ export default function ExpensesPage() {
                 </form>
             </div>
 
-            {/* Expense list */}
             <div className="section-header">
                 <h2 className="section-title">Expenses</h2>
             </div>

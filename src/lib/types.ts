@@ -71,6 +71,8 @@ export interface BudgetSummary {
     totalCredit: number;
     totalDebit: number;
     adjustedRemaining: number;
+    recoveryTarget: number;
+    burnRate: number; // percentage of budget spent vs percentage of month passed
 }
 
 export interface DailySummary {
